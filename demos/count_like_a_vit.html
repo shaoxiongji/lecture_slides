@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Count Like a ViT</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: lab bench — the scene canvas on the left, instruments (controls + three counters) on the right; stacks on phones. */
+:root {
+  --bg: #fbfafd;
+  --fg: #1d1726;
+  --muted: #645d70;
+  --panel: #f1edf7;
+  --rule: #dcd5e7;
+  --accent: #7a4fc0;      /* UTU purple, darkened for text contrast */
+  --accent-soft: #e9e0f5;
+  --teal: #1f6f7a;
+  --coral: #c8323f;
+  --table: #f6f3ea;
+  --ink-dot: #111111;
+  --font-sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15121b; --fg: #ece8f2; --muted: #a49db1; --panel: #1f1a28; --rule: #362f42;
+    --accent: #b99be6; --accent-soft: #2c2340; --teal: #6cc6d2; --coral: #ff7a7f;
+    --table: #241f2c; --ink-dot: #f4f1f8; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15121b; --fg: #ece8f2; --muted: #a49db1; --panel: #1f1a28; --rule: #362f42;
+  --accent: #b99be6; --accent-soft: #2c2340; --teal: #6cc6d2; --coral: #ff7a7f;
+  --table: #241f2c; --ink-dot: #f4f1f8; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 40px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font: 600 12px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); line-height: 1.1; font-weight: 700; text-wrap: balance; }
+.lede { margin: 0; max-width: 68ch; color: var(--muted); }
+.bench { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 860px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.scene { display: grid; gap: 8px; min-width: 0; }
+canvas { width: 100%; max-width: 100%; height: auto; display: block; border: 1px solid var(--rule); background: var(--table); touch-action: manipulation; }
+.hint { font-size: 13px; color: var(--muted); min-height: 2.6em; margin: 0; }
+.hint b { color: var(--fg); }
+.side { display: grid; gap: 16px; min-width: 0; }
+.group { display: grid; gap: 10px; }
+.group h2 { margin: 0; font: 600 12px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: 500 13px/1 var(--font-sans); color: var(--fg); background: var(--panel); border: 1px solid var(--rule);
+  padding: 8px 11px; cursor: pointer; border-radius: 2px;
+}
+button:hover { border-color: var(--accent); }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 3.2em; gap: 8px; align-items: center; font-size: 13px; }
+.row output { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.truth { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--fg); padding-bottom: 6px; }
+.truth span:first-child { font-weight: 600; }
+.num { font: 600 26px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.meter { display: grid; gap: 4px; padding: 10px 12px; background: var(--panel); border-left: 4px solid var(--rule); }
+.meter.over { border-left-color: var(--coral); }
+.meter.under { border-left-color: var(--teal); }
+.meter.exact { border-left-color: var(--accent); }
+.meter .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.meter .name { font-weight: 600; font-size: 14px; }
+.meter .delta { font: 600 12px/1 var(--font-mono); }
+.meter.over .delta { color: var(--coral); }
+.meter.under .delta { color: var(--teal); }
+.meter.exact .delta { color: var(--accent); }
+.meter p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.col-controls { display: flex; gap: 6px; flex-wrap: wrap; }
+.quotes { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--rule); font-size: 13px; }
+.quotes .q { display: grid; grid-template-columns: 9.5em 2.6em minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.quotes .q b { font-family: var(--font-mono); color: var(--coral); text-align: right; font-variant-numeric: tabular-nums; }
+.quotes .q.ok b { color: var(--accent); }
+.quotes .q span:last-child { color: var(--muted); }
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; border-top: 1px solid var(--rule); padding-top: 18px; }
+@media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.notes h3 { margin: 0 0 4px; font-size: 15px; }
+.notes p { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 60ch; }
+footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
+footer p { margin: 0 0 4px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Lecture demo · Multimodal AI, part 3 · failure modes</div>
+    <h1>Count like a ViT</h1>
+    <p class="lede">A vision transformer cuts the image into square patches and turns each one into a token. Apples do not respect patch borders. Turn on the patches, hover an apple, and compare three ways of counting: patch by patch, by area, and object by object.</p>
+  </header>
+
+  <section class="bench">
+    <div class="scene">
+      <canvas id="cv" width="720" height="480" aria-label="Apples on a table with an optional patch grid"></canvas>
+      <p class="hint" id="hint">Hover or tap an apple to see how many patch tokens it is split into.</p>
+    </div>
+
+    <div class="side">
+      <div class="group">
+        <h2>Scene</h2>
+        <div class="presets" role="group" aria-label="Scene presets">
+          <button id="p-one" data-preset="one" aria-pressed="false">One cluster</button>
+          <button id="p-grid" data-preset="grid" aria-pressed="true">3 × 3 clusters</button>
+          <button id="p-scatter" data-preset="scatter" aria-pressed="false">Loose pile</button>
+          <button id="shuffle">Shuffle</button>
+        </div>
+        <label class="row" for="per">Apples / cluster <input id="per" type="range" min="3" max="9" value="6"><output id="per-o">6</output></label>
+        <label class="row" for="size">Apple size <input id="size" type="range" min="60" max="140" value="100"><output id="size-o">100%</output></label>
+        <label class="row" for="patch">Patch size <input id="patch" type="range" min="24" max="96" step="8" value="48"><output id="patch-o">48</output></label>
+        <label class="check" for="grid"><input id="grid" type="checkbox" checked> Show patch grid and per-patch counts</label>
+      </div>
+
+      <div class="group" aria-live="polite">
+        <h2>Counters</h2>
+        <div class="truth"><span>True count</span><span class="num" id="n-true">54</span></div>
+        <div class="meter" id="m-frag">
+          <div class="top"><span class="name">Patch by patch</span><span><span class="delta" id="d-frag"></span> <span class="num" id="n-frag">0</span></span></div>
+          <p>Each patch counts the apple pieces it can see. Pieces of one apple in four patches count four times.</p>
+        </div>
+        <div class="meter" id="m-dens">
+          <div class="top"><span class="name">Density estimate</span><span><span class="delta" id="d-dens"></span> <span class="num" id="n-dens">0</span></span></div>
+          <p>Apple area divided by the area of one apple. Apples hidden behind others add no area.</p>
+        </div>
+        <div class="meter exact" id="m-col">
+          <div class="top"><span class="name">Chain-of-Look</span><span><span class="delta" id="d-col"></span> <span class="num" id="n-col">0</span></span></div>
+          <p>Visit one apple at a time, mark it, add one. Stopping halfway still gives a partial count.</p>
+          <div class="col-controls">
+            <button id="play">Play</button>
+            <button id="step">Step</button>
+            <button id="reset">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="quotes">
+        <div class="eyebrow">Real answers on the 3 × 3 slide image (54 apples)</div>
+        <div class="q"><span>GPT-5</span><b>45</b><span>after counting one cluster correctly as 6</span></div>
+        <div class="q"><span>Qwen3-VL-235B</span><b>45</b><span>“3 × 3 × 5”</span></div>
+        <div class="q"><span>Gemini 2.5 Pro</span><b>81</b><span>“9 × 9”</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div>
+      <h3>One apple, many tokens</h3>
+      <p>Patch tokens describe texture and layout inside a square. Nothing in the representation says “this is one object”, so the one-to-one link between things and tokens is missing.</p>
+    </div>
+    <div>
+      <h3>Counting becomes estimation</h3>
+      <p>Summing patch statistics behaves like density estimation: about right for the amount of apple, unreliable for the number of apples, and worst where apples overlap.</p>
+    </div>
+    <div>
+      <h3>Look step by step</h3>
+      <p>People count with object permanence and an increment loop. Chain-of-Look turns that into visual key-steps the model must take, one object at a time.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Toy model, not a real ViT: the two patch-level counters show two ways patch statistics go wrong (fragmentation and occlusion). Apple layout is generated, not taken from the original image.</p>
+    <p>Model answers and the Chain-of-Look idea: Junsong Yuan, “Chain-of-Look Visual Reasoning”, CVPR 2026 tutorial <i>From Perception to Simulation</i>. Made for the lecture “Multimodal AI: from fusion to world models”, Shaoxiong Ji, ELLIS Institute Finland &amp; University of Turku.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const W = 720, H = 480, STEP = 2;
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const $ = (id) => document.getElementById(id);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  const state = { preset: 'grid', seed: 7, per: 6, size: 1, patch: 48, grid: true, colIndex: 0, playing: false, hover: -1 };
+  let apples = [], owner = null, visCount = [], centroid = [], order = [], applePatches = [], patchCounts = new Map();
+  let timer = null;
+
+  function rng(seed) { let a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+  function buildScene() {
+    const R = rng(state.seed);
+    apples = [];
+    if (state.preset === 'scatter') {
+      const r = 26 * state.size, n = 40;
+      for (let i = 0; i < n; i++) {
+        const x = r + 8 + R() * (W - 2 * r - 16), y = r + 8 + R() * (H - 2 * r - 16);
+        apples.push({ x, y, r: r * (0.9 + 0.2 * R()), tint: R() });
+      }
+    } else {
+      const rows = state.preset === 'one' ? 1 : 3, cols = rows;
+      const cw = W / cols, ch = H / rows;
+      const base = Math.min(cw, ch) * (rows === 1 ? 0.12 : 0.15) * state.size;
+      // one template cluster, repeated (like the slide image)
+      const tmpl = [];
+      const spread = Math.min(cw, ch) * 0.24;
+      for (let i = 0; i < state.per; i++) {
+        let ang, rad;
+        if (i === 0 && state.per >= 5) { ang = 0; rad = 0; }
+        else { const k = state.per >= 5 ? i - 1 : i, m = state.per >= 5 ? state.per - 1 : state.per; ang = (k / m) * Math.PI * 2 + (R() - 0.5) * 0.5 - Math.PI / 2; rad = spread * (0.75 + 0.3 * R()); }
+        tmpl.push({ dx: Math.cos(ang) * rad * 1.25, dy: Math.sin(ang) * rad * 0.95, r: base * (0.9 + 0.22 * R()), tint: R() });
+      }
+      for (let rI = 0; rI < rows; rI++) for (let cI = 0; cI < cols; cI++) {
+        const cx = cw * (cI + 0.5), cy = ch * (rI + 0.5);
+        tmpl.forEach(t => apples.push({ x: cx + t.dx, y: cy + t.dy, r: t.r, tint: t.tint }));
+      }
+    }
+    apples.sort((a, b) => a.y - b.y); // lower apples drawn on top, like a photo of a pile
+    computeVisibility();
+    computeOrder();
+    computePatches();
+  }
+
+  function computeVisibility() {
+    const gw = W / STEP, gh = H / STEP;
+    owner = new Int16Array(gw * gh).fill(-1);
+    visCount = new Array(apples.length).fill(0);
+    const sx = new Array(apples.length).fill(0), sy = new Array(apples.length).fill(0);
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+      const px = i * STEP + 1, py = j * STEP + 1;
+      for (let k = apples.length - 1; k >= 0; k--) {
+        const a = apples[k], dx = px - a.x, dy = py - a.y;
+        if (dx * dx + dy * dy <= a.r * a.r) { owner[j * gw + i] = k; visCount[k]++; sx[k] += px; sy[k] += py; break; }
+      }
+    }
+    centroid = apples.map((a, k) => visCount[k] ? { x: sx[k] / visCount[k], y: sy[k] / visCount[k] } : { x: a.x, y: a.y });
+  }
+
+  function computeOrder() {
+    const left = apples.map((_, k) => k).filter(k => visCount[k] > 0);
+    order = [];
+    let cur = { x: 0, y: 0 };
+    while (left.length) {
+      let best = 0, bd = Infinity;
+      left.forEach((k, idx) => { const c = centroid[k]; const d = (c.x - cur.x) ** 2 + (c.y - cur.y) ** 2 * 1.6; if (d < bd) { bd = d; best = idx; } });
+      const k = left.splice(best, 1)[0];
+      order.push(k); cur = centroid[k];
+    }
+  }
+
+  function computePatches() {
+    const gw = W / STEP, gh = H / STEP, P = state.patch, MIN = 3; // a piece needs >= 3 samples (12 px²) to count
+    const per = new Map();
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+      const k = owner[j * gw + i]; if (k < 0) continue;
+      const key = Math.floor(i * STEP / P) + ',' + Math.floor(j * STEP / P);
+      let m = per.get(key); if (!m) { m = new Map(); per.set(key, m); }
+      m.set(k, (m.get(k) || 0) + 1);
+    }
+    patchCounts = new Map();
+    applePatches = apples.map(() => []);
+    per.forEach((m, key) => {
+      let c = 0;
+      m.forEach((n, k) => { if (n >= MIN) { c++; applePatches[k].push(key); } });
+      if (c) patchCounts.set(key, c);
+    });
+  }
+
+  function counts() {
+    const truth = apples.length;
+    let frag = 0; patchCounts.forEach(c => frag += c);
+    const vis = visCount.reduce((s, v) => s + v, 0) * STEP * STEP;
+    const meanArea = apples.reduce((s, a) => s + Math.PI * a.r * a.r, 0) / truth;
+    const dens = Math.round(vis / meanArea);
+    return { truth, frag, dens, col: Math.min(state.colIndex, order.length) };
+  }
+
+  function appleColor(t) {
+    // Pink Lady: rose-pink blush, darker pink rim, a creamy yellow highlight where the skin shows through
+    const h = 344 + t * 8, s = 66 + t * 10;
+    return { body: `hsl(${h} ${s}% 61%)`, dark: `hsl(${h} ${s - 8}% 42%)`, light: `hsl(44 85% 80%)` };
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = css('--table'); ctx.fillRect(0, 0, W, H);
+    const P = state.patch;
+
+    // highlight patches of hovered apple (under the apples)
+    if (state.hover >= 0 && state.grid) {
+      ctx.fillStyle = css('--accent-soft');
+      applePatches[state.hover].forEach(key => { const [i, j] = key.split(',').map(Number); ctx.fillRect(i * P, j * P, P, P); });
+    }
+
+    apples.forEach((a, k) => {
+      const c = appleColor(a.tint);
+      const g = ctx.createRadialGradient(a.x - a.r * 0.35, a.y - a.r * 0.4, a.r * 0.1, a.x, a.y, a.r);
+      g.addColorStop(0, c.light); g.addColorStop(0.45, c.body); g.addColorStop(1, c.dark);
+      ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = c.dark; ctx.stroke();
+      // stem and leaf
+      ctx.strokeStyle = '#5b3a1e'; ctx.lineWidth = Math.max(1.5, a.r * 0.08); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(a.x, a.y - a.r * 0.62); ctx.lineTo(a.x + a.r * 0.08, a.y - a.r * 0.9); ctx.stroke();
+      ctx.fillStyle = '#5e8f2a';
+      ctx.beginPath(); ctx.ellipse(a.x + a.r * 0.26, a.y - a.r * 0.82, a.r * 0.2, a.r * 0.09, -0.5, 0, Math.PI * 2); ctx.fill();
+      if (k === state.hover) { ctx.lineWidth = 3; ctx.strokeStyle = css('--accent'); ctx.beginPath(); ctx.arc(a.x, a.y, a.r + 2, 0, Math.PI * 2); ctx.stroke(); }
+    });
+
+    if (state.grid) {
+      ctx.strokeStyle = css('--accent'); ctx.globalAlpha = 0.55; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = P; x < W; x += P) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
+      for (let y = P; y < H; y += P) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
+      ctx.stroke(); ctx.globalAlpha = 1;
+      if (P >= 32) {
+        ctx.font = `600 ${P >= 48 ? 12 : 10}px ${css('--font-mono')}`; ctx.textBaseline = 'top';
+        patchCounts.forEach((c, key) => {
+          const [i, j] = key.split(',').map(Number);
+          const t = String(c), w = ctx.measureText(t).width + 6;
+          ctx.fillStyle = css('--bg'); ctx.globalAlpha = 0.85; ctx.fillRect(i * P + 2, j * P + 2, w, P >= 48 ? 15 : 13); ctx.globalAlpha = 1;
+          ctx.fillStyle = css('--fg'); ctx.fillText(t, i * P + 5, j * P + 3.5);
+        });
+      }
+    }
+
+    // chain-of-look path and numbered marks
+    const n = Math.min(state.colIndex, order.length);
+    if (n > 0) {
+      ctx.strokeStyle = css('--ink-dot'); ctx.globalAlpha = 0.45; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); for (let s = 0; s < n; s++) { const c = centroid[order[s]]; s ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y); } ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+      ctx.font = `600 11px ${css('--font-mono')}`; ctx.textBaseline = 'middle';
+      for (let s = 0; s < n; s++) {
+        const c = centroid[order[s]];
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(c.x, c.y, 3.2, 0, Math.PI * 2); ctx.fill();
+        const t = String(s + 1), w = ctx.measureText(t).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.fillRect(c.x + 5, c.y - 7, w + 4, 14);
+        ctx.fillStyle = '#111'; ctx.fillText(t, c.x + 7, c.y);
+      }
+    }
+    renderCounters();
+  }
+
+  function setMeter(id, value, truth, partial) {
+    const el = $('m-' + id), d = value - truth;
+    $('n-' + id).textContent = value;
+    el.classList.remove('over', 'under', 'exact');
+    if (partial) { el.classList.add('exact'); $('d-' + id).textContent = value ? `${value} of ${truth} so far` : ''; return; }
+    el.classList.add(d > 0 ? 'over' : d < 0 ? 'under' : 'exact');
+    $('d-' + id).textContent = d === 0 ? 'exact' : (d > 0 ? '+' : '−') + Math.abs(d);
+  }
+
+  function renderCounters() {
+    const c = counts();
+    $('n-true').textContent = c.truth;
+    setMeter('frag', c.frag, c.truth);
+    setMeter('dens', c.dens, c.truth);
+    setMeter('col', c.col, order.length, c.col < order.length);
+    $('play').textContent = state.playing ? 'Pause' : (c.col >= order.length && c.col > 0 ? 'Replay' : 'Play');
+  }
+
+  function stopPlay() { state.playing = false; clearInterval(timer); timer = null; }
+  function play() {
+    if (state.playing) { stopPlay(); renderCounters(); return; }
+    if (state.colIndex >= order.length) state.colIndex = 0;
+    state.playing = true;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    timer = setInterval(() => {
+      state.colIndex++;
+      if (state.colIndex >= order.length) { state.colIndex = order.length; stopPlay(); }
+      draw();
+    }, reduce ? 260 : 110);
+    draw();
+  }
+
+  function rebuild() { stopPlay(); state.colIndex = 0; state.hover = -1; buildScene(); draw(); updateHint(); }
+
+  function updateHint() {
+    const h = $('hint');
+    if (state.hover < 0) { h.innerHTML = 'Hover or tap an apple to see how many patch tokens it is split into.'; return; }
+    const k = applePatches[state.hover].length;
+    const hidden = Math.round(100 * (1 - visCount[state.hover] * STEP * STEP / (Math.PI * apples[state.hover].r ** 2)));
+    h.innerHTML = `This apple is split across <b>${k} patch token${k === 1 ? '' : 's'}</b>` + (hidden > 3 ? `, and <b>${hidden}%</b> of it is hidden behind other apples.` : '.');
+  }
+
+  function pick(ev) {
+    const r = cv.getBoundingClientRect();
+    const x = (ev.clientX - r.left) * W / r.width, y = (ev.clientY - r.top) * H / r.height;
+    const i = Math.floor(x / STEP), j = Math.floor(y / STEP);
+    if (i < 0 || j < 0 || i >= W / STEP || j >= H / STEP) return -1;
+    return owner[j * (W / STEP) + i];
+  }
+  cv.addEventListener('pointermove', ev => { const k = pick(ev); if (k !== state.hover) { state.hover = k; draw(); updateHint(); } });
+  cv.addEventListener('pointerdown', ev => { state.hover = pick(ev); draw(); updateHint(); });
+  cv.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') { state.hover = -1; draw(); updateHint(); } });
+
+  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+    state.preset = b.dataset.preset;
+    document.querySelectorAll('[data-preset]').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    $('per').disabled = state.preset === 'scatter';
+    rebuild();
+  }));
+  $('shuffle').addEventListener('click', () => { state.seed = (state.seed * 7919 + 13) % 100003; rebuild(); });
+  $('per').addEventListener('input', e => { state.per = +e.target.value; $('per-o').textContent = state.per; rebuild(); });
+  $('size').addEventListener('input', e => { state.size = e.target.value / 100; $('size-o').textContent = e.target.value + '%'; rebuild(); });
+  $('patch').addEventListener('input', e => { state.patch = +e.target.value; $('patch-o').textContent = state.patch; computePatches(); draw(); updateHint(); });
+  $('grid').addEventListener('change', e => { state.grid = e.target.checked; draw(); });
+  $('play').addEventListener('click', play);
+  $('step').addEventListener('click', () => { stopPlay(); if (state.colIndex < order.length) state.colIndex++; draw(); });
+  $('reset').addEventListener('click', () => { stopPlay(); state.colIndex = 0; draw(); });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  buildScene();
+  state.colIndex = Math.round(order.length * 0.4); // open mid-count so the first frame shows all three counters at work
+  draw();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>

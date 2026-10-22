@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Noise to Data</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: lab bench. The sample canvas on the left, instruments (controls + readouts) on the right; stacks on phones. */
+:root {
+  --bg: #fbfafd;
+  --fg: #1d1726;
+  --muted: #645d70;
+  --panel: #f1edf7;
+  --rule: #dcd5e7;
+  --accent: #7a4fc0;      /* UTU purple, darkened for text contrast */
+  --accent-soft: #e9e0f5;
+  --teal: #1f6f7a;
+  --coral: #c8323f;
+  --table: #f6f3ea;
+  --grid: #e6e0d2;
+  --ink-dot: #111111;
+  --class-a: #7a4fc0;
+  --class-b: #1f8a96;
+  --font-sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15121b; --fg: #ece8f2; --muted: #a49db1; --panel: #1f1a28; --rule: #362f42;
+    --accent: #b99be6; --accent-soft: #2c2340; --teal: #6cc6d2; --coral: #ff7a7f;
+    --table: #1b1722; --grid: #2a2433; --ink-dot: #f4f1f8; --class-a: #b99be6; --class-b: #6cc6d2; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15121b; --fg: #ece8f2; --muted: #a49db1; --panel: #1f1a28; --rule: #362f42;
+  --accent: #b99be6; --accent-soft: #2c2340; --teal: #6cc6d2; --coral: #ff7a7f;
+  --table: #1b1722; --grid: #2a2433; --ink-dot: #f4f1f8; --class-a: #b99be6; --class-b: #6cc6d2; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 40px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font: 600 12px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); line-height: 1.1; font-weight: 700; text-wrap: balance; }
+.lede { margin: 0; max-width: 68ch; color: var(--muted); }
+.bench { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 860px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.scene { display: grid; gap: 8px; min-width: 0; }
+canvas { width: 100%; max-width: 100%; height: auto; display: block; border: 1px solid var(--rule); background: var(--table); touch-action: manipulation; }
+.hint { font-size: 13px; color: var(--muted); min-height: 2.6em; margin: 0; }
+.hint b { color: var(--fg); }
+.timeline { display: grid; grid-template-columns: auto minmax(0, 1fr) 4.2em; gap: 10px; align-items: center; font-size: 13px; }
+.timeline output { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.sw.a { background: var(--class-a); }
+.sw.b { background: var(--class-b); }
+.sw.off { background: var(--coral); }
+.sw.ring { background: transparent; border: 1.5px solid var(--muted); }
+.side { display: grid; gap: 16px; min-width: 0; }
+.group { display: grid; gap: 10px; }
+.group h2 { margin: 0; font: 600 12px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: 500 13px/1 var(--font-sans); color: var(--fg); background: var(--panel); border: 1px solid var(--rule);
+  padding: 8px 11px; cursor: pointer; border-radius: 2px;
+}
+button:hover { border-color: var(--accent); }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 3.2em; gap: 8px; align-items: center; font-size: 13px; }
+.row output { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.num { font: 600 26px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.meter { display: grid; gap: 4px; padding: 10px 12px; background: var(--panel); border-left: 4px solid var(--rule); }
+.meter.good { border-left-color: var(--accent); }
+.meter.bad { border-left-color: var(--coral); }
+.meter.info { border-left-color: var(--teal); }
+.meter .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.meter .name { font-weight: 600; font-size: 14px; }
+.meter .delta { font: 600 12px/1 var(--font-mono); color: var(--muted); }
+.meter p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; border-top: 1px solid var(--rule); padding-top: 18px; }
+@media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.notes h3 { margin: 0 0 4px; font-size: 15px; }
+.notes p { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 60ch; }
+.notes code { font-family: var(--font-mono); font-size: 12.5px; color: var(--fg); }
+footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
+footer p { margin: 0 0 4px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Lecture demo · Multimodal AI, part 4 · generation</div>
+    <h1>Noise to data</h1>
+    <p class="lede">A generator starts from Gaussian noise and follows a velocity field until the noise looks like data. Pick a target shape, then change the sampler, the number of steps and the guidance strength. Watch where 600 samples land.</p>
+  </header>
+
+  <section class="bench">
+    <div class="scene">
+      <canvas id="cv" width="640" height="520" aria-label="Samples moving from Gaussian noise to a two-class 2D dataset"></canvas>
+      <div class="timeline">
+        <button id="play">Replay</button>
+        <input id="time" type="range" min="0" max="30" value="30" aria-label="Time step">
+        <output id="time-o">t = 1.00</output>
+      </div>
+      <div class="legend" id="legend">
+        <span><i class="sw ring"></i> training point</span>
+        <span><i class="sw a"></i> <span id="lab-a">Upper moon</span></span>
+        <span><i class="sw b"></i> <span id="lab-b">Lower moon</span></span>
+        <span><i class="sw off"></i> off the data</span>
+      </div>
+      <p class="hint" id="hint">Drag the time slider to watch the noise turn into data.</p>
+    </div>
+
+    <div class="side">
+      <div class="group">
+        <h2>Target</h2>
+        <div class="presets" role="group" aria-label="Target shape">
+          <button id="p-moons" data-preset="moons" aria-pressed="true">Two moons</button>
+          <button id="p-ring" data-preset="ring" aria-pressed="false">Ring of 8 blobs</button>
+          <button id="p-spirals" data-preset="spirals" aria-pressed="false">Two spirals</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Sampler</h2>
+        <div class="presets" role="group" aria-label="Sampler">
+          <button id="s-flow" data-sampler="flow" aria-pressed="true">Flow matching (ODE)</button>
+          <button id="s-diff" data-sampler="diff" aria-pressed="false">Diffusion (SDE)</button>
+        </div>
+        <label class="row" for="steps">Steps <input id="steps" type="range" min="1" max="60" value="30"><output id="steps-o">30</output></label>
+        <label class="row" for="gamma">Guidance γ <input id="gamma" type="range" min="0" max="4" step="0.1" value="1"><output id="gamma-o">1.0</output></label>
+        <div class="presets" role="group" aria-label="Class to generate">
+          <button id="c-a" data-cls="a" aria-pressed="false">Class A</button>
+          <button id="c-b" data-cls="b" aria-pressed="false">Class B</button>
+          <button id="c-both" data-cls="both" aria-pressed="true">Both</button>
+          <button id="resample">Resample</button>
+        </div>
+        <label class="check" for="paths"><input id="paths" type="checkbox" checked> Show paths</label>
+        <label class="check" for="data"><input id="data" type="checkbox" checked> Show training data</label>
+      </div>
+
+      <div class="group" aria-live="polite">
+        <h2>Readouts</h2>
+        <div class="meter good" id="m-near">
+          <div class="top"><span class="name">Near the data</span><span class="num" id="n-near">0%</span></div>
+          <p id="p-near">Share of final samples within 0.15 of a training point of their class.</p>
+        </div>
+        <div class="meter bad" id="m-off">
+          <div class="top"><span class="name">Off the data</span><span class="num" id="n-off">0</span></div>
+          <p>Samples that end up between the data points. Drawn in coral.</p>
+        </div>
+        <div class="meter info" id="m-spread">
+          <div class="top"><span class="name">Spread</span><span class="num" id="n-spread">0.00</span></div>
+          <p>Mean distance from a sample to its nearest training point.</p>
+        </div>
+        <div class="meter" id="m-cost">
+          <div class="top"><span class="name">Cost</span><span><span class="delta" id="d-cost"></span> <span class="num" id="n-cost">0</span></span></div>
+          <p>Velocity evaluations per sample. Guidance with 0 &lt; γ ≠ 1 needs two per step.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div>
+      <h3>Noise in, data out</h3>
+      <p>Sampling integrates a learned velocity from noise at <i>t</i> = 0 to data at <i>t</i> = 1. Flow matching follows a smooth ODE, so paths come out nearly straight. Diffusion adds fresh noise at every step, so paths jitter on the way to the same data.</p>
+    </div>
+    <div>
+      <h3>Few steps blur</h3>
+      <p>One Euler step jumps to the average of the data, which lies between the moons. With more steps each sample sees where it is heading and commits to one mode. Set steps to 1, 3 and 30 and compare the coral count.</p>
+    </div>
+    <div>
+      <h3>Guidance sharpens</h3>
+      <p>Classifier-free guidance extrapolates from the unconditional to the conditional velocity: <code>u = u(x) + γ (u(x|y) − u(x))</code>. In score form that is <code>γ∇log p(x|y) + (1−γ)∇log p(x)</code>. With γ &gt; 1 samples hug their class and diversity drops.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Toy model: the velocity is computed exactly from the training points, so samples collapse onto them; a trained network generalises between them.</p>
+    <p>Formulas: MIT MAS.S60 lec. 6.2 (Liang, 2026); Lipman et al., ICLR 2023 (flow matching); Ho &amp; Salimans, 2022 (classifier-free guidance). Made for the lecture “Multimodal AI: from fusion to world models”, Shaoxiong Ji, ELLIS Institute Finland &amp; University of Turku.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const W = 640, H = 520, S = 520 / 6.4;          // canvas size, pixels per data unit
+  const M = 600, N = 300, R_NEAR = 0.15, ETA = 0.8;
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const $ = (id) => document.getElementById(id);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const LABELS = { moons: ['Upper moon', 'Lower moon'], ring: ['Left half', 'Right half'], spirals: ['Arm A', 'Arm B'] };
+
+  const state = { preset: 'moons', sampler: 'flow', steps: 30, gamma: 1, cls: 'both', paths: true, data: true, seed: 1, frame: 30, playing: false };
+  let data = null, run = null, timer = null;
+
+  function rng(seed) { let a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function gauss(R) { let u = 0; while (u === 0) u = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * R()); }
+
+  // ---------- training data: N points in two classes ----------
+  function makeData(preset) {
+    const R = rng(preset === 'moons' ? 101 : preset === 'ring' ? 202 : 303);
+    const X = new Float64Array(N), Y = new Float64Array(N), C = new Uint8Array(N);
+    for (let i = 0; i < N; i++) {
+      let x, y, c;
+      if (preset === 'moons') {
+        c = i % 2; const th = Math.PI * R();
+        if (c === 0) { x = Math.cos(th); y = Math.sin(th); } else { x = 1 - Math.cos(th); y = 0.5 - Math.sin(th); }
+        x = (x - 0.5) * 1.5 + 0.05 * gauss(R); y = (y - 0.25) * 1.5 + 0.05 * gauss(R);
+      } else if (preset === 'ring') {
+        const k = i % 8, a = (k + 0.5) * Math.PI / 4;
+        x = 2 * Math.cos(a) + 0.12 * gauss(R); y = 2 * Math.sin(a) + 0.12 * gauss(R);
+        c = Math.cos(a) < 0 ? 0 : 1;
+      } else {
+        c = i % 2; const s = R(), r = 0.3 + 2.3 * s, th = 3 * Math.PI * s + c * Math.PI;
+        x = r * Math.cos(th) + 0.05 * gauss(R); y = r * Math.sin(th) + 0.05 * gauss(R);
+      }
+      X[i] = x; Y[i] = y; C[i] = c;
+    }
+    const all = [], A = [], B = [];
+    for (let i = 0; i < N; i++) { all.push(i); (C[i] ? B : A).push(i); }
+    return { X, Y, C, sets: [Int32Array.from(A), Int32Array.from(B), Int32Array.from(all)] };
+  }
+
+  // ---------- exact ideal denoiser for the empirical dataset ----------
+  // Path: x_t = t*x1 + (1-t)*x0, x0 ~ N(0, I). Given x_t, the posterior over training points is
+  // w_i = softmax_i(-|x - t x_i|^2 / (2 (1-t)^2)), so E[x1 | x_t] = sum_i w_i x_i and the marginal
+  // velocity is u(x, t) = (E[x1 | x_t] - x) / (1 - t). Log-sum-exp keeps the softmax stable.
+  const logit = new Float64Array(N), out = new Float64Array(2);
+  function posteriorMean(px, py, t, set) {
+    const X = data.X, Y = data.Y, s2 = 2 * (1 - t) * (1 - t);
+    let m = -Infinity;
+    for (let k = 0; k < set.length; k++) {
+      const i = set[k], dx = px - t * X[i], dy = py - t * Y[i];
+      const l = -(dx * dx + dy * dy) / s2; logit[k] = l; if (l > m) m = l;
+    }
+    let sum = 0, mx = 0, my = 0;
+    for (let k = 0; k < set.length; k++) {
+      const i = set[k], e = Math.exp(logit[k] - m); sum += e; mx += e * X[i]; my += e * Y[i];
+    }
+    out[0] = mx / sum; out[1] = my / sum;
+  }
+
+  // ---------- sampling ----------
+  // Flow matching: Euler steps on dx/dt = u_guided(x, t), h = 1/n.
+  // Diffusion: DDIM-style ancestral sampling with the same ideal denoiser. At each step predict
+  // x1_hat, read off the implied noise eps_hat = (x_t - t x1_hat)/(1 - t), replace a fraction ETA of it
+  // with fresh noise, eps_new = sqrt(1 - ETA^2) eps_hat + ETA z, and set x_{t+h} = (t+h) x1_hat + (1-t-h) eps_new.
+  // Guidance acts on x1_hat, which is the same as guiding the velocity since u is affine in x1_hat.
+  function simulate() {
+    const n = state.steps, h = 1 / n, g = state.gamma;
+    const Rn = rng(state.seed * 7919 + 1), Rc = rng(state.seed * 104729 + 3), Rz = rng(state.seed * 15485863 + 5);
+    const traj = new Float32Array((n + 1) * M * 2), cls = new Uint8Array(M);
+    const px = new Float64Array(M), py = new Float64Array(M);
+    for (let p = 0; p < M; p++) {
+      px[p] = gauss(Rn); py[p] = gauss(Rn);
+      const r = Rc();
+      cls[p] = state.cls === 'a' ? 0 : state.cls === 'b' ? 1 : (r < 0.5 ? 0 : 1);
+      traj[2 * p] = px[p]; traj[2 * p + 1] = py[p];
+    }
+    const needU = g !== 1, needC = g !== 0;
+    for (let s = 0; s < n; s++) {
+      const t = Math.min(s * h, 1 - 1e-3), tn = (s + 1) * h;
+      for (let p = 0; p < M; p++) {
+        let ux = 0, uy = 0, cx = 0, cy = 0;
+        if (needU) { posteriorMean(px[p], py[p], t, data.sets[2]); ux = out[0]; uy = out[1]; }
+        if (needC) { posteriorMean(px[p], py[p], t, data.sets[cls[p]]); cx = out[0]; cy = out[1]; }
+        const x1 = !needC ? ux : !needU ? cx : ux + g * (cx - ux);
+        const y1 = !needC ? uy : !needU ? cy : uy + g * (cy - uy);
+        if (state.sampler === 'flow') {
+          px[p] += h * (x1 - px[p]) / (1 - t); py[p] += h * (y1 - py[p]) / (1 - t);
+        } else if (s === n - 1) {
+          px[p] = x1; py[p] = y1;
+        } else {
+          const ex = (px[p] - t * x1) / (1 - t), ey = (py[p] - t * y1) / (1 - t), k = Math.sqrt(1 - ETA * ETA);
+          px[p] = tn * x1 + (1 - tn) * (k * ex + ETA * gauss(Rz));
+          py[p] = tn * y1 + (1 - tn) * (k * ey + ETA * gauss(Rz));
+        }
+        const o = ((s + 1) * M + p) * 2; traj[o] = px[p]; traj[o + 1] = py[p];
+      }
+    }
+    // final readouts: distance to the nearest training point of the target class (any class when γ = 0)
+    const near = new Uint8Array(M), nearCls = new Uint8Array(M), base = n * M * 2;
+    let hits = 0, dsum = 0;
+    for (let p = 0; p < M; p++) {
+      const set = needC ? data.sets[cls[p]] : data.sets[2];
+      const x = traj[base + 2 * p], y = traj[base + 2 * p + 1];
+      let best = Infinity, bi = 0;
+      for (let k = 0; k < set.length; k++) { const i = set[k], d = (x - data.X[i]) ** 2 + (y - data.Y[i]) ** 2; if (d < best) { best = d; bi = i; } }
+      best = Math.sqrt(best); dsum += best; nearCls[p] = data.C[bi];
+      if (best < R_NEAR) { near[p] = 1; hits++; }
+    }
+    run = { traj, cls, near, nearCls, steps: n, cond: needC, share: hits / M, off: M - hits, spread: dsum / M, nfe: n * ((needU ? 1 : 0) + (needC ? 1 : 0)), perStep: (needU ? 1 : 0) + (needC ? 1 : 0) };
+  }
+
+  // ---------- drawing ----------
+  const tx = (x) => W / 2 + x * S, ty = (y) => H / 2 - y * S;
+
+  function draw() {
+    const col = { a: css('--class-a'), b: css('--class-b'), off: css('--coral'), muted: css('--muted') };
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = css('--table'); ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.beginPath();
+    for (let k = -4; k <= 4; k++) { const x = Math.round(tx(k)) + 0.5, y = Math.round(ty(k)) + 0.5; ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+    ctx.strokeStyle = css('--rule'); ctx.beginPath();
+    ctx.moveTo(Math.round(tx(0)) + 0.5, 0); ctx.lineTo(Math.round(tx(0)) + 0.5, H); ctx.moveTo(0, Math.round(ty(0)) + 0.5); ctx.lineTo(W, Math.round(ty(0)) + 0.5);
+    ctx.stroke();
+
+    if (state.data) {
+      ctx.lineWidth = 1.2; ctx.globalAlpha = 0.75;
+      for (let c = 0; c < 2; c++) {
+        ctx.strokeStyle = c ? col.b : col.a; ctx.beginPath();
+        for (let i = 0; i < N; i++) if (data.C[i] === c) { const x = tx(data.X[i]), y = ty(data.Y[i]); ctx.moveTo(x + 3.2, y); ctx.arc(x, y, 3.2, 0, Math.PI * 2); }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    const f = Math.min(state.frame, run.steps), final = f === run.steps, T = run.traj;
+    const colorOf = (p) => run.cond ? (run.cls[p] ? col.b : col.a) : (final ? (run.nearCls[p] ? col.b : col.a) : col.muted);
+
+    if (state.paths && f > 0) {
+      ctx.lineWidth = 0.8; ctx.globalAlpha = 0.16;
+      const groups = new Map();
+      for (let p = 0; p < M; p++) { const c = colorOf(p); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(p); }
+      groups.forEach((ps, c) => {
+        ctx.strokeStyle = c; ctx.beginPath();
+        ps.forEach(p => { ctx.moveTo(tx(T[2 * p]), ty(T[2 * p + 1])); for (let s = 1; s <= f; s++) { const o = (s * M + p) * 2; ctx.lineTo(tx(T[o]), ty(T[o + 1])); } });
+        ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    for (let p = 0; p < M; p++) {
+      if (final && !run.near[p]) continue;
+      const o = (f * M + p) * 2;
+      ctx.fillStyle = colorOf(p); ctx.beginPath(); ctx.arc(tx(T[o]), ty(T[o + 1]), 2.3, 0, Math.PI * 2); ctx.fill();
+    }
+    if (final) {
+      ctx.fillStyle = col.off;
+      for (let p = 0; p < M; p++) if (!run.near[p]) { const o = (f * M + p) * 2; ctx.beginPath(); ctx.arc(tx(T[o]), ty(T[o + 1]), 3, 0, Math.PI * 2); ctx.fill(); }
+    }
+    renderReadouts();
+  }
+
+  function renderReadouts() {
+    const f = Math.min(state.frame, run.steps), pct = Math.round(run.share * 100);
+    $('n-near').textContent = pct + '%';
+    $('n-off').textContent = String(run.off);
+    $('n-spread').textContent = run.spread.toFixed(2);
+    $('n-cost').textContent = String(run.nfe);
+    $('d-cost').textContent = `${run.steps} step${run.steps === 1 ? '' : 's'} × ${run.perStep}`;
+    $('p-near').textContent = run.cond ? 'Share of final samples within 0.15 of a training point of their class.' : 'Share of final samples within 0.15 of any training point.';
+    $('time').max = String(run.steps); $('time').value = String(f);
+    $('time-o').textContent = 't = ' + (f / run.steps).toFixed(2);
+    $('play').textContent = state.playing ? 'Pause' : (f >= run.steps ? 'Replay' : 'Play');
+    const how = state.sampler === 'flow' ? `${run.steps} Euler step${run.steps === 1 ? '' : 's'}` : `${run.steps} noisy diffusion step${run.steps === 1 ? '' : 's'}`;
+    $('hint').innerHTML = f >= run.steps
+      ? `${how}: <b>${pct}%</b> of 600 samples land near the data, <b>${run.off}</b> land off it.`
+      : `Step ${f} of ${run.steps}. Samples are still part noise. Drag the slider or press Play.`;
+  }
+
+  // ---------- controls ----------
+  function stopPlay() { state.playing = false; clearInterval(timer); timer = null; }
+  function play() {
+    if (state.playing) { stopPlay(); draw(); return; }
+    if (state.frame >= run.steps) state.frame = 0;
+    state.playing = true;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const inc = reduce ? Math.ceil(run.steps / 5) : 1, delay = reduce ? 350 : Math.max(25, Math.round(1600 / run.steps));
+    timer = setInterval(() => {
+      state.frame = Math.min(run.steps, state.frame + inc);
+      if (state.frame >= run.steps) stopPlay();
+      draw();
+    }, delay);
+    draw();
+  }
+
+  let pending = false;
+  const later = window.requestAnimationFrame ? (fn) => window.requestAnimationFrame(fn) : (fn) => setTimeout(fn, 16);
+  function rerun() {
+    stopPlay();
+    if (pending) return;
+    pending = true;
+    later(() => { pending = false; simulate(); state.frame = run.steps; draw(); });
+  }
+  function press(attr, value) { document.querySelectorAll(`[data-${attr}]`).forEach(o => o.setAttribute('aria-pressed', String(o.dataset[attr] === value))); }
+  function setLabels() { $('lab-a').textContent = LABELS[state.preset][0]; $('lab-b').textContent = LABELS[state.preset][1]; }
+
+  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+    state.preset = b.dataset.preset; press('preset', state.preset); data = makeData(state.preset); setLabels(); rerun();
+  }));
+  document.querySelectorAll('[data-sampler]').forEach(b => b.addEventListener('click', () => { state.sampler = b.dataset.sampler; press('sampler', state.sampler); rerun(); }));
+  document.querySelectorAll('[data-cls]').forEach(b => b.addEventListener('click', () => { state.cls = b.dataset.cls; press('cls', state.cls); rerun(); }));
+  $('steps').addEventListener('input', e => { state.steps = +e.target.value; $('steps-o').textContent = state.steps; rerun(); });
+  $('gamma').addEventListener('input', e => { state.gamma = +e.target.value; $('gamma-o').textContent = state.gamma.toFixed(1); rerun(); });
+  $('resample').addEventListener('click', () => { state.seed = (state.seed * 48271 + 11) % 2147483647; rerun(); });
+  $('paths').addEventListener('change', e => { state.paths = e.target.checked; draw(); });
+  $('data').addEventListener('change', e => { state.data = e.target.checked; draw(); });
+  $('time').addEventListener('input', e => { stopPlay(); state.frame = +e.target.value; draw(); });
+  $('play').addEventListener('click', play);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  data = makeData(state.preset);
+  setLabels();
+  simulate();
+  state.frame = run.steps;
+  draw();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>

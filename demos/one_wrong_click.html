@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>One Wrong Click</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: lab bench. The mock screen and survival chart on the left, controls, readouts and the step list on the right; stacks on phones. */
+:root {
+  --bg: #fbfafd;
+  --fg: #1d1726;
+  --muted: #645d70;
+  --panel: #f1edf7;
+  --rule: #dcd5e7;
+  --accent: #7a4fc0;      /* UTU purple, darkened for text contrast */
+  --accent-soft: #e9e0f5;
+  --teal: #1f6f7a;
+  --coral: #c8323f;
+  --desk: #e4e0ea;
+  --win: #ffffff;
+  --chrome: #ebe7f1;
+  --field: #ffffff;
+  --fieldline: #c4bcd2;
+  --font-sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15121b; --fg: #ece8f2; --muted: #a49db1; --panel: #1f1a28; --rule: #362f42;
+    --accent: #b99be6; --accent-soft: #2c2340; --teal: #6cc6d2; --coral: #ff7a7f;
+    --desk: #0f0d13; --win: #1b1722; --chrome: #262030; --field: #14111a; --fieldline: #4a4157;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15121b; --fg: #ece8f2; --muted: #a49db1; --panel: #1f1a28; --rule: #362f42;
+  --accent: #b99be6; --accent-soft: #2c2340; --teal: #6cc6d2; --coral: #ff7a7f;
+  --desk: #0f0d13; --win: #1b1722; --chrome: #262030; --field: #14111a; --fieldline: #4a4157;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 40px;
+  margin: 0;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font: 600 12px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); line-height: 1.1; font-weight: 700; text-wrap: balance; }
+.lede { margin: 0; max-width: 68ch; color: var(--muted); }
+.bench { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 860px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.scene { display: grid; gap: 8px; min-width: 0; }
+canvas { width: 100%; max-width: 100%; height: auto; display: block; border: 1px solid var(--rule); background: var(--desk); }
+#chart { background: var(--bg); }
+.hint { font-size: 13px; color: var(--muted); min-height: 2.6em; margin: 0; }
+.hint b { color: var(--fg); }
+.side { display: grid; gap: 16px; min-width: 0; }
+.group { display: grid; gap: 10px; }
+.group h2, .scene h2 { margin: 0; font: 600 12px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.scene h2 { margin-top: 8px; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: 500 13px/1 var(--font-sans); color: var(--fg); background: var(--panel); border: 1px solid var(--rule);
+  padding: 8px 11px; cursor: pointer; border-radius: 2px;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 4.4em; gap: 8px; align-items: center; font-size: 13px; }
+.row output { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.num { font: 600 26px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.meter { display: grid; gap: 4px; padding: 10px 12px; background: var(--panel); border-left: 4px solid var(--rule); }
+.meter.p { border-left-color: var(--teal); }
+.meter.s { border-left-color: var(--coral); }
+.meter.k { border-left-color: var(--accent); }
+.meter .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.meter .name { font-weight: 600; font-size: 14px; }
+.meter .delta { font: 600 12px/1 var(--font-mono); color: var(--accent); }
+.meter p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.steps button {
+  width: 100%; display: grid; grid-template-columns: 1.8em minmax(0, 1fr) 3.6em 1.2em; gap: 6px; align-items: center;
+  text-align: left; padding: 6px 8px; background: transparent; border-color: transparent; line-height: 1.2;
+}
+.steps button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.steps .i { font: 600 12px/1 var(--font-mono); color: var(--muted); }
+.steps .r { font: 400 12px/1 var(--font-mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.steps .st { font: 600 14px/1 var(--font-mono); text-align: center; color: var(--muted); }
+.steps .st.ok { color: var(--teal); }
+.steps .st.bad { color: var(--coral); }
+.small { margin: 0; font-size: 12.5px; color: var(--muted); }
+.quotes { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule); font-size: 13px; }
+.quotes .q { display: grid; grid-template-columns: 8.5em minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.quotes .q span:first-child { font-weight: 600; }
+.quotes .q b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.quotes .q .g { color: var(--teal); }
+.quotes .q .t { color: var(--coral); }
+.quotes .q .m { color: var(--muted); }
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; border-top: 1px solid var(--rule); padding-top: 18px; }
+@media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.notes h3 { margin: 0 0 4px; font-size: 15px; }
+.notes p { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 60ch; }
+footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; }
+footer p { margin: 0 0 4px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Lecture demo · Multimodal AI, part 5 · from seeing to acting</div>
+    <h1>One wrong click</h1>
+    <p class="lede">A computer-use agent files an expense report one click at a time. Every click lands near its target with some spread, and one miss ends the episode. Play an episode, then run 1,000 and watch the share of episodes still on track shrink with every step.</p>
+  </header>
+
+  <section class="bench">
+    <div class="scene">
+      <canvas id="cv" width="720" height="480" aria-label="Mock expense report app with the agent's click points"></canvas>
+      <p class="hint" id="hint" aria-live="polite">Press Play episode to watch the agent work through the task.</p>
+      <h2 id="chart-h">Still on track after each step · 1,000 episodes</h2>
+      <canvas id="chart" width="720" height="220" aria-label="Share of episodes still on track after each step, measured and predicted by p to the power k"></canvas>
+    </div>
+
+    <div class="side">
+      <div class="group">
+        <h2>Agent</h2>
+        <label class="row" for="k">Task steps <input id="k" type="range" min="2" max="12" value="6"><output id="k-o">6</output></label>
+        <label class="row" for="sigma">Click error σ <input id="sigma" type="range" min="0" max="30" value="8"><output id="sigma-o">8 px</output></label>
+        <label class="row" for="q">Plan error <input id="q" type="range" min="0" max="20" value="0"><output id="q-o">0%</output></label>
+        <label class="row" for="dens">UI density <input id="dens" type="range" min="0" max="2" step="1" value="1"><output id="dens-o">normal</output></label>
+        <div class="actions">
+          <button id="play" class="primary">Play episode</button>
+          <button id="run">Run 1,000 episodes</button>
+        </div>
+      </div>
+
+      <div class="group" aria-live="polite">
+        <h2>Readouts</h2>
+        <div class="meter p">
+          <div class="top"><span class="name">Per-step accuracy</span><span class="num" id="n-p">0%</span></div>
+          <p id="t-p">Share of clicks that landed inside their target.</p>
+        </div>
+        <div class="meter s">
+          <div class="top"><span class="name">Task success</span><span class="num" id="n-s">0%</span></div>
+          <p id="t-s">Episodes where every click landed.</p>
+        </div>
+        <div class="meter k">
+          <div class="top"><span class="name">If errors were independent: p<sup>k</sup></span><span class="num" id="n-k">0%</span></div>
+          <p id="t-k">Measured per-step accuracy raised to the number of steps.</p>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2 id="steps-h">Task · 6 steps</h2>
+        <ol class="steps" id="steps" aria-label="Task steps"></ol>
+        <p class="small" id="sel-note">Pick a step to see where its clicks landed.</p>
+      </div>
+
+      <div class="quotes">
+        <div class="eyebrow">Real benchmarks (EACL 2026 tutorial, S. Gella)</div>
+        <div class="q"><span>UI-TARS-72B</span><span><b class="g">92.3%</b> on ScreenSpot-V2 grounding but <b class="t">27.1%</b> on OSWorld tasks</span></div>
+        <div class="q"><span>Qwen3-VL-32B</span><span><b class="g">88.5%</b> grounding vs <b class="t">41.0%</b> tasks</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div>
+      <h3>Every step must land</h3>
+      <p>One miss ends the episode or sends it down the wrong path. A per-step accuracy of 95% sounds high, yet over 12 steps it leaves about 54% of episodes intact.</p>
+    </div>
+    <div>
+      <h3>Two kinds of error</h3>
+      <p>Picking Delete when the task says Submit is a planning error: the agent chose the wrong element. Landing just beside the right button is a grounding error. Dense screens and small targets raise the second kind.</p>
+    </div>
+    <div>
+      <h3>Why benchmarks disagree</h3>
+      <p>Single-click grounding benchmarks measure p. Task benchmarks measure roughly p<sup>k</sup>, plus planning and recovery. A saturated grounding score can still go with low task success.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Toy model: independent Gaussian click errors on a mock screen. Real agents can sometimes notice a mistake and recover, and errors are often correlated.</p>
+    <p>Numbers: S. Gella, “Towards Robust (and Safe) Multimodal Agents”, EACL 2026 tutorial, Part IV, pp. 28–40. Made for the lecture “Multimodal AI: from fusion to world models”, Shaoxiong Ji, ELLIS Institute Finland &amp; University of Turku.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const W = 720, H = 480, CW = 720, CH = 220, N = 1000;
+  const $ = (id) => document.getElementById(id);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const ch = $('chart'), cctx = ch.getContext('2d');
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * DPR; cv.height = H * DPR; ch.width = CW * DPR; ch.height = CH * DPR;
+
+  function rng(seed) { let a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function gauss(R) { const u = 1 - R(), v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+  // ---------- mock screen ----------
+  const DENS = [
+    { name: 'sparse', fh: 36, font: 14, lab: 12, gapX: 22, gapY: 14, cols: 2, side: false,
+      tools: ['New report', 'Upload receipt', 'Export', 'Help'],
+      fields: ['Report name', 'Date', 'Amount', 'Currency', 'Category', 'Merchant', 'Project code', 'Notes'],
+      foot: ['Delete', 'Save draft', 'Submit for approval'] },
+    { name: 'normal', fh: 26, font: 13, lab: 11, gapX: 16, gapY: 10, cols: 3, side: false,
+      tools: ['New report', 'Upload receipt', 'Import', 'Export', 'Settings', 'Help'],
+      fields: ['Report name', 'Date', 'Cost centre', 'Amount', 'Currency', 'Tax rate', 'Category', 'Merchant', 'Payment method', 'Project code', 'Attendees', 'Notes'],
+      foot: ['Delete', 'Cancel', 'Save draft', 'Submit for approval'] },
+    { name: 'dense', fh: 17, font: 11, lab: 10, gapX: 10, gapY: 7, cols: 4, side: true,
+      tools: ['New report', 'Upload receipt', 'Import', 'Export', 'Duplicate', 'Print', 'Share', 'Filter', 'Settings', 'Help'],
+      fields: ['Report name', 'Trip ID', 'Date', 'Per diem', 'Amount', 'Currency', 'Tax rate', 'VAT ID', 'Category', 'Cost centre', 'Merchant', 'Country', 'Project code', 'Approver', 'Payment method', 'Receipt no.', 'Attendees', 'Mileage (km)', 'Reference', 'Notes'],
+      foot: ['Delete', 'Duplicate draft', 'Cancel', 'Print', 'Save draft', 'Submit for approval'] },
+  ];
+  const SIDE = ['All reports', 'Oct travel', 'Client dinner', 'Team offsite', 'Conference fees', 'Taxi receipts', 'Hotel Berlin', 'Q3 software', 'Drafts (3)', 'Archived'];
+  const VALUES = { 'Report name': 'October client visit', 'Date': '2026-10-14', 'Amount': '248.60', 'Currency': 'EUR', 'Category': 'Travel', 'Merchant': 'Finnair', 'Project code': 'ELLIS-MM-07', 'Notes': 'Flight HEL to BER', 'Cost centre': '4410', 'Tax rate': '14%', 'Payment method': 'Company card', 'Attendees': '2' };
+  const SCRIPT = ['New report', 'Report name', 'Date', 'Amount', 'Currency', 'Category', 'Upload receipt', 'Merchant', 'Project code', 'Notes', 'Save draft'];
+  const CONF = {
+    'Submit for approval': ['Delete', 'Save draft'], 'Save draft': ['Cancel', 'Delete', 'Submit for approval'],
+    'New report': ['Import', 'Upload receipt'], 'Upload receipt': ['Import', 'New report', 'Export'],
+    'Amount': ['Tax rate', 'Currency', 'Mileage (km)'], 'Currency': ['Amount', 'Country'], 'Date': ['Report name', 'Per diem'],
+    'Category': ['Cost centre', 'Project code'], 'Merchant': ['Report name', 'Reference'], 'Project code': ['Cost centre', 'Trip ID', 'Category'],
+    'Notes': ['Attendees', 'Merchant'], 'Report name': ['Reference', 'Merchant'],
+  };
+  const stepsFor = (k) => SCRIPT.slice(0, k - 1).concat('Submit for approval');
+
+  function buildLayout(d) {
+    const D = DENS[d], els = [];
+    const win = { x: 8, y: 8, w: 704, h: 464 };
+    const bw = (t) => Math.round(t.length * D.font * 0.56 + (D.font > 12 ? 28 : 16));
+    const tbY = win.y + 26, tbH = D.fh + 14;
+    let x = win.x + 12;
+    D.tools.forEach(t => { const w = bw(t); els.push({ label: t, kind: 'tool', x, y: tbY + 7, w, h: D.fh }); x += w + (D.font > 12 ? 10 : 6); });
+    const top = tbY + tbH;
+    let fx0 = win.x + 16, side = null;
+    if (D.side) {
+      side = { x: win.x, y: top, w: 132, h: win.y + win.h - top };
+      SIDE.forEach((t, i) => els.push({ label: t, kind: 'list', x: win.x + 8, y: top + 10 + i * (D.fh + 4), w: 116, h: D.fh }));
+      fx0 = win.x + 132 + 14;
+    }
+    const fx1 = win.x + win.w - 16;
+    const headY = top + 22, fy = top + 38;
+    const cellW = (fx1 - fx0 - (D.cols - 1) * D.gapX) / D.cols;
+    const rowH = D.lab + 4 + D.fh + D.gapY;
+    D.fields.forEach((t, i) => {
+      const c = i % D.cols, r = Math.floor(i / D.cols);
+      els.push({ label: t, kind: 'field', x: fx0 + c * (cellW + D.gapX), y: fy + r * rowH + D.lab + 4, w: cellW, h: D.fh });
+    });
+    const by = win.y + win.h - 14 - D.fh, gap = D.font > 12 ? 10 : 6;
+    els.push({ label: D.foot[0], kind: 'foot', x: fx0, y: by, w: bw(D.foot[0]), h: D.fh });
+    let rx = fx1;
+    for (let i = D.foot.length - 1; i >= 1; i--) { const w = bw(D.foot[i]); rx -= w; els.push({ label: D.foot[i], kind: 'foot', x: rx, y: by, w, h: D.fh }); rx -= gap; }
+    const by_label = {}; els.forEach(e => { by_label[e.label] = by_label[e.label] || e; });
+    return { D, win, tbY, tbH, top, side, fx0, fx1, headY, footLine: by - 12, els, get: (l) => by_label[l] };
+  }
+
+  const inside = (e, x, y) => x >= e.x && x <= e.x + e.w && y >= e.y && y <= e.y + e.h;
+  const elementAt = (L, x, y) => L.els.find(e => inside(e, x, y)) || null;
+
+  function pickConfuser(L, target, R) {
+    let cand = (CONF[target.label] || []).map(L.get).filter(e => e && e !== target);
+    if (!cand.length) {
+      const cx = target.x + target.w / 2, cy = target.y + target.h / 2;
+      cand = L.els.filter(e => e !== target).sort((a, b) => Math.hypot(a.x + a.w / 2 - cx, a.y + a.h / 2 - cy) - Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy)).slice(0, 3);
+    }
+    return cand[Math.floor(R() * cand.length)];
+  }
+
+  function click(L, target, sigma, q, R) {
+    let aim = target;
+    if (q > 0 && R() < q) aim = pickConfuser(L, target, R);
+    const x = aim.x + aim.w / 2 + sigma * gauss(R), y = aim.y + aim.h / 2 + sigma * gauss(R);
+    const hit = inside(target, x, y);
+    return { x, y, hit, kind: hit ? 'ok' : (aim !== target ? 'plan' : 'ground'), aim, target };
+  }
+
+  function simEpisode(L, steps, sigma, q, R) {
+    const clicks = [];
+    for (let i = 0; i < steps.length; i++) {
+      const c = click(L, L.get(steps[i]), sigma, q, R);
+      clicks.push(c);
+      if (!c.hit) break;
+    }
+    return { clicks, shown: clicks.length };
+  }
+
+  function runStats(L, steps, sigma, q, n, seed) {
+    const R = rng(seed), k = steps.length;
+    const reach = new Array(k + 1).fill(0); reach[0] = n;
+    const tries = new Array(k).fill(0), hitsAt = new Array(k).fill(0), clouds = steps.map(() => []);
+    let attempts = 0, hits = 0, plan = 0, ground = 0;
+    for (let e = 0; e < n; e++) {
+      for (let i = 0; i < k; i++) {
+        const c = click(L, L.get(steps[i]), sigma, q, R);
+        attempts++; tries[i]++; clouds[i].push(c.x, c.y, c.hit ? 1 : 0);
+        if (!c.hit) { if (c.kind === 'plan') plan++; else ground++; break; }
+        hits++; hitsAt[i]++; reach[i + 1]++;
+      }
+    }
+    const p = hits / attempts;
+    return { n, k, reach, tries, hitsAt, clouds, attempts, hits, plan, ground, p, success: reach[k] / n, pk: Math.pow(p, k) };
+  }
+
+  // ---------- state ----------
+  const state = { k: 6, sigma: 8, q: 0, dens: 1, sel: 0, statSeed: 20261, epSeed: 2, L: null, steps: [], stats: null, ep: null, cursor: null, anim: null };
+  let raf = 0, stepRefs = [];
+
+  function recompute() {
+    stopAnim();
+    state.L = buildLayout(state.dens);
+    state.steps = stepsFor(state.k);
+    state.stats = runStats(state.L, state.steps, state.sigma, state.q, N, state.statSeed);
+    state.ep = simEpisode(state.L, state.steps, state.sigma, state.q, rng(state.epSeed));
+    settle();
+  }
+  function settle() {
+    const c = state.ep.clicks;
+    state.ep.shown = c.length; state.sel = c.length - 1;
+    state.cursor = { x: c[c.length - 1].x, y: c[c.length - 1].y };
+  }
+  function stopAnim() { if (raf) cancelAnimationFrame(raf); raf = 0; state.anim = null; }
+
+  // ---------- drawing ----------
+  function tokens() {
+    const n = ['bg', 'fg', 'muted', 'panel', 'rule', 'accent', 'accent-soft', 'teal', 'coral', 'desk', 'win', 'chrome', 'field', 'fieldline', 'font-sans', 'font-mono'];
+    const T = {}; n.forEach(k => T[k] = css('--' + k)); return T;
+  }
+  function box(g, x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); }
+  const pct = (v, d = 1) => (100 * v).toFixed(d) + '%';
+
+  function drawApp(T) {
+    const g = ctx, L = state.L, D = L.D, w = L.win;
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = T.desk; g.fillRect(0, 0, W, H);
+    g.fillStyle = T.win; g.fillRect(w.x, w.y, w.w, w.h);
+    // title bar
+    g.fillStyle = T.chrome; g.fillRect(w.x, w.y, w.w, 26);
+    g.fillStyle = T.fieldline; [0, 1, 2].forEach(i => { g.beginPath(); g.arc(w.x + 16 + i * 16, w.y + 13, 5, 0, Math.PI * 2); g.fill(); });
+    g.fillStyle = T.fg; g.font = `600 12px ${T['font-sans']}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('Certify — Expense report', w.x + w.w / 2, w.y + 13);
+    g.textAlign = 'left';
+    // toolbar
+    g.fillStyle = T.panel; g.fillRect(w.x, L.tbY, w.w, L.tbH);
+    g.fillStyle = T.rule; g.fillRect(w.x, L.tbY + L.tbH - 1, w.w, 1); g.fillRect(w.x, L.tbY, w.w, 1);
+    if (L.side) { g.fillStyle = T.panel; g.fillRect(L.side.x, L.side.y, L.side.w, L.side.h); g.fillStyle = T.rule; g.fillRect(L.side.x + L.side.w, L.side.y, 1, L.side.h); }
+    // heading
+    g.fillStyle = T.fg; g.font = `600 ${D.font + 3}px ${T['font-sans']}`; g.fillText('New expense report', L.fx0, L.headY);
+    g.fillStyle = T.rule; g.fillRect(L.fx0, L.footLine, L.fx1 - L.fx0, 1);
+    L.els.forEach(e => drawEl(g, T, D, e));
+    g.strokeStyle = T.rule; g.lineWidth = 1; g.strokeRect(w.x + 0.5, w.y + 0.5, w.w - 1, w.h - 1);
+
+    // overlays
+    const S = state.stats, sel = Math.min(state.sel, state.steps.length - 1);
+    if (sel >= 0) {
+      const cl = S.clouds[sel];
+      g.globalAlpha = 0.28;
+      for (let i = 0; i < cl.length; i += 3) { g.fillStyle = cl[i + 2] ? T.teal : T.coral; g.fillRect(cl[i] - 1.2, cl[i + 1] - 1.2, 2.4, 2.4); }
+      g.globalAlpha = 1;
+      const t = L.get(state.steps[sel]);
+      g.strokeStyle = T.accent; g.lineWidth = 2; g.strokeRect(t.x - 3, t.y - 3, t.w + 6, t.h + 6);
+    }
+    const ep = state.ep;
+    if (ep) {
+      g.font = `600 10px ${T['font-mono']}`; g.textBaseline = 'middle';
+      for (let i = 0; i < ep.shown; i++) {
+        const c = ep.clicks[i];
+        if (c.kind === 'plan') { g.setLineDash([4, 3]); g.strokeStyle = T.coral; g.lineWidth = 1.5; g.strokeRect(c.aim.x - 2, c.aim.y - 2, c.aim.w + 4, c.aim.h + 4); g.setLineDash([]); }
+        g.beginPath(); g.arc(c.x, c.y, 5, 0, Math.PI * 2); g.fillStyle = c.hit ? T.teal : T.coral; g.fill();
+        g.lineWidth = 1.5; g.strokeStyle = T.bg; g.stroke();
+        const s = String(i + 1), tw = g.measureText(s).width || 7;
+        g.fillStyle = T.bg; g.globalAlpha = 0.85; g.fillRect(c.x + 6, c.y - 15, tw + 4, 12); g.globalAlpha = 1;
+        g.fillStyle = T.fg; g.fillText(s, c.x + 8, c.y - 9);
+      }
+    }
+    if (state.cursor) drawCursor(g, T, state.cursor.x, state.cursor.y);
+  }
+
+  function drawEl(g, T, D, e) {
+    g.textBaseline = 'middle';
+    if (e.kind === 'field') {
+      g.fillStyle = T.muted; g.font = `500 ${D.lab}px ${T['font-sans']}`; g.textBaseline = 'alphabetic';
+      g.fillText(e.label, e.x, e.y - 4);
+      box(g, e.x, e.y, e.w, e.h, 2); g.fillStyle = T.field; g.fill(); g.lineWidth = 1; g.strokeStyle = T.fieldline; g.stroke();
+      const v = VALUES[e.label];
+      if (v) {
+        g.save(); g.beginPath(); g.rect(e.x + 2, e.y, e.w - 4, e.h); g.clip();
+        g.fillStyle = T.fg; g.font = `400 ${D.font - 1}px ${T['font-sans']}`; g.textBaseline = 'middle';
+        g.fillText(v, e.x + 6, e.y + e.h / 2 + 0.5); g.restore();
+      }
+      return;
+    }
+    if (e.kind === 'list') {
+      if (e.label === 'Oct travel') { g.fillStyle = T['accent-soft']; g.fillRect(e.x, e.y, e.w, e.h); }
+      g.fillStyle = e.label === 'Oct travel' ? T.accent : T.muted; g.font = `500 ${D.font}px ${T['font-sans']}`;
+      g.fillText(e.label, e.x + 6, e.y + e.h / 2 + 0.5); return;
+    }
+    const primary = e.label === 'Submit for approval', danger = e.label === 'Delete', soft = e.label === 'New report';
+    box(g, e.x, e.y, e.w, e.h, 3);
+    g.fillStyle = primary ? T.accent : soft ? T['accent-soft'] : T.win; g.fill();
+    g.lineWidth = 1; g.strokeStyle = primary ? T.accent : danger ? T.coral : T.fieldline; g.stroke();
+    g.fillStyle = primary ? T.bg : danger ? T.coral : soft ? T.accent : T.fg;
+    g.font = `${primary || soft ? 600 : 500} ${D.font}px ${T['font-sans']}`; g.textAlign = 'center';
+    g.fillText(e.label, e.x + e.w / 2, e.y + e.h / 2 + 0.5); g.textAlign = 'left';
+  }
+
+  function drawCursor(g, T, x, y) {
+    const pts = [[0, 0], [0, 17], [4.5, 13], [7.5, 20], [10.5, 18.8], [7.6, 12], [13, 12]];
+    g.beginPath(); pts.forEach(([a, b], i) => i ? g.lineTo(x + a, y + b) : g.moveTo(x + a, y + b)); g.closePath();
+    g.fillStyle = T.fg; g.fill(); g.lineWidth = 1.2; g.strokeStyle = T.bg; g.stroke();
+  }
+
+  function drawChart(T) {
+    const g = cctx, S = state.stats, k = S.k;
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    g.clearRect(0, 0, CW, CH); g.fillStyle = T.bg; g.fillRect(0, 0, CW, CH);
+    const l = 48, r = 112, t = 16, b = 32, pw = CW - l - r, ph = CH - t - b;
+    const X = (i) => l + (i - 1) / (k - 1) * pw, Y = (v) => t + (1 - v) * ph;
+    if (state.sel >= 0) { g.fillStyle = T['accent-soft']; const bwid = Math.min(28, pw / (k - 1) * 0.7); g.fillRect(X(state.sel + 1) - bwid / 2, t, bwid, ph); }
+    g.font = `400 11px ${T['font-mono']}`; g.textBaseline = 'middle'; g.textAlign = 'right';
+    for (let v = 0; v <= 1.001; v += 0.25) {
+      g.fillStyle = T.rule; g.fillRect(l, Math.round(Y(v)) + 0.5, pw, 1);
+      g.fillStyle = T.muted; g.fillText(Math.round(v * 100) + '%', l - 8, Y(v));
+    }
+    g.textAlign = 'center';
+    for (let i = 1; i <= k; i++) g.fillText(String(i), X(i), CH - b + 16);
+    g.textAlign = 'right'; g.fillText('step', l - 8, CH - b + 16); g.textAlign = 'left';
+    // p^k, dashed
+    g.strokeStyle = T.accent; g.lineWidth = 2; g.setLineDash([6, 4]); g.beginPath();
+    for (let i = 1; i <= k; i++) { const y = Y(Math.pow(S.p, i)); i === 1 ? g.moveTo(X(i), y) : g.lineTo(X(i), y); }
+    g.stroke(); g.setLineDash([]);
+    // measured survival
+    g.strokeStyle = T.coral; g.lineWidth = 2.2; g.beginPath();
+    for (let i = 1; i <= k; i++) { const y = Y(S.reach[i] / S.n); i === 1 ? g.moveTo(X(i), y) : g.lineTo(X(i), y); }
+    g.stroke();
+    g.fillStyle = T.coral;
+    for (let i = 1; i <= k; i++) { g.beginPath(); g.arc(X(i), Y(S.reach[i] / S.n), 3.2, 0, Math.PI * 2); g.fill(); }
+    // end labels
+    let ym = Y(S.success), yk = Y(S.pk);
+    if (Math.abs(ym - yk) < 14) { if (ym <= yk) { ym -= (14 - (yk - ym)) / 2; yk = ym + 14; } else { yk -= (14 - (ym - yk)) / 2; ym = yk + 14; } }
+    g.font = `600 11px ${T['font-mono']}`;
+    g.fillStyle = T.coral; g.fillText('measured ' + pct(S.success, 0), X(k) + 10, ym);
+    g.fillStyle = T.accent; g.fillText('p^k ' + pct(S.pk, 0), X(k) + 10, yk);
+  }
+
+  // ---------- DOM ----------
+  function buildSteps() {
+    const ol = $('steps'); ol.innerHTML = ''; stepRefs = [];
+    state.steps.forEach((label, i) => {
+      const li = document.createElement('li'), b = document.createElement('button');
+      const si = document.createElement('span'), sl = document.createElement('span'), sr = document.createElement('span'), st = document.createElement('span');
+      si.className = 'i'; sl.className = 'l'; sr.className = 'r'; st.className = 'st';
+      si.textContent = String(i + 1); sl.textContent = label;
+      b.appendChild(si); b.appendChild(sl); b.appendChild(sr); b.appendChild(st);
+      b.addEventListener('click', () => { if (state.anim) return; state.sel = i; render(); });
+      li.appendChild(b); ol.appendChild(li);
+      stepRefs.push({ b, sr, st, label });
+    });
+    $('steps-h').textContent = `Task · ${state.steps.length} steps`;
+  }
+
+  function updateDom() {
+    const S = state.stats, ep = state.ep, k = S.k;
+    $('n-p').textContent = pct(S.p);
+    $('n-s').textContent = pct(S.success);
+    $('n-k').textContent = pct(S.pk);
+    const fh = state.L.D.fh;
+    $('t-p').textContent = `Share of ${S.attempts.toLocaleString('en-US')} clicks that landed inside their target. σ = ${state.sigma} px on targets ${fh} px tall.`;
+    const fails = S.plan + S.ground;
+    $('t-s').textContent = fails ? `Episodes where all ${k} clicks landed. Failures: ${pct(S.ground / fails, 0)} wrong coordinates, ${pct(S.plan / fails, 0)} wrong button.` : `All ${k} clicks landed in every one of the 1,000 episodes.`;
+    const gap = 100 * (S.success - S.pk);
+    $('t-k').textContent = `${pct(S.p)} raised to the power ${k}. Measured minus predicted: ${gap >= 0 ? '+' : '−'}${Math.abs(gap).toFixed(1)} points.`;
+    const playing = !!state.anim;
+    stepRefs.forEach((s, i) => {
+      let mark = '·', cls = 'st', word = 'not reached';
+      if (ep && i < ep.shown) { const c = ep.clicks[i]; mark = c.hit ? '✓' : '✗'; cls = c.hit ? 'st ok' : 'st bad'; word = c.hit ? 'hit' : (c.kind === 'plan' ? 'wrong button' : 'missed'); }
+      else if (playing && ep && i < ep.clicks.length) { word = 'pending'; }
+      s.st.textContent = mark; s.st.className = cls;
+      const rate = S.tries[i] ? S.hitsAt[i] / S.tries[i] : NaN;
+      s.sr.textContent = isNaN(rate) ? 'n/a' : pct(rate, 0);
+      s.b.setAttribute('aria-pressed', String(i === state.sel));
+      s.b.setAttribute('aria-label', `Step ${i + 1}, ${s.label}, ${word} in this episode, ${isNaN(rate) ? 'never reached' : pct(rate, 0) + ' of simulated clicks hit'}`);
+    });
+    const sel = state.sel, n = S.tries[sel] || 0;
+    $('sel-note').textContent = `Showing ${n.toLocaleString('en-US')} simulated clicks on step ${sel + 1} (${state.steps[sel]}), from the episodes that got that far. Pick another step to compare.`;
+    $('play').textContent = playing ? 'Stop' : 'Play episode';
+    updateHint();
+  }
+
+  function outsideBy(t, x, y) {
+    const dx = Math.max(t.x - x, 0, x - (t.x + t.w)), dy = Math.max(t.y - y, 0, y - (t.y + t.h));
+    return Math.max(1, Math.round(Math.hypot(dx, dy)));
+  }
+
+  function updateHint() {
+    const h = $('hint'), ep = state.ep, k = state.steps.length;
+    if (!ep) { h.innerHTML = 'Press Play episode to watch the agent work through the task.'; return; }
+    if (state.anim) {
+      const i = state.anim.i;
+      h.innerHTML = `Step <b>${i + 1} of ${k}</b>: aiming at <b>${state.steps[i]}</b>.`; return;
+    }
+    const last = ep.clicks[ep.clicks.length - 1];
+    if (last.hit && ep.clicks.length === k) {
+      h.innerHTML = `Episode finished: <b>all ${k} clicks landed</b>. At these settings that happens in ${pct(state.stats.success, 0)} of episodes.`; return;
+    }
+    const i = ep.clicks.length;
+    if (last.kind === 'plan') {
+      h.innerHTML = `Step ${i} failed. <b>Wrong button:</b> the agent picked <b>${last.aim.label}</b> instead of <b>${last.target.label}</b>. The episode ends here.`;
+    } else {
+      const on = elementAt(state.L, last.x, last.y);
+      h.innerHTML = `Step ${i} failed. <b>Wrong coordinates:</b> the agent aimed at <b>${last.target.label}</b> and clicked ${on ? '<b>' + on.label + '</b>' : 'empty space'}, ${outsideBy(last.target, last.x, last.y)} px outside the target. The episode ends here.`;
+    }
+  }
+
+  function render() {
+    const T = tokens();
+    drawApp(T); drawChart(T); updateDom();
+  }
+
+  // ---------- playback ----------
+  function play() {
+    if (state.anim) { stopAnim(); settle(); render(); return; }
+    state.epSeed = (state.epSeed * 48271 + 11) % 2147483647;
+    state.ep = simEpisode(state.L, state.steps, state.sigma, state.q, rng(state.epSeed));
+    state.ep.shown = 0;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const MOVE = reduce ? 0 : 480, HOLD = reduce ? 450 : 260;
+    const start = state.cursor ? { x: state.cursor.x, y: state.cursor.y } : { x: W / 2, y: H / 2 };
+    state.anim = { i: 0, t0: performance.now(), from: start };
+    state.sel = 0;
+    const ease = (u) => u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    function frame(now) {
+      const a = state.anim; if (!a) return;
+      const c = state.ep.clicks[a.i], t = now - a.t0;
+      state.sel = a.i;
+      if (t < MOVE) { const e = ease(t / MOVE); state.cursor = { x: a.from.x + (c.x - a.from.x) * e, y: a.from.y + (c.y - a.from.y) * e }; }
+      else {
+        state.cursor = { x: c.x, y: c.y }; state.ep.shown = a.i + 1;
+        if (t >= MOVE + HOLD) {
+          if (a.i + 1 >= state.ep.clicks.length) { state.anim = null; raf = 0; settle(); render(); return; }
+          a.i++; a.from = { x: c.x, y: c.y }; a.t0 = now;
+        }
+      }
+      render(); raf = requestAnimationFrame(frame);
+    }
+    render();
+    raf = requestAnimationFrame(frame);
+  }
+
+  // ---------- wiring ----------
+  const DN = ['sparse', 'normal', 'dense'];
+  function onSlider() {
+    state.k = +$('k').value; state.sigma = +$('sigma').value; state.q = +$('q').value / 100; state.dens = +$('dens').value;
+    $('k-o').textContent = state.k; $('sigma-o').textContent = state.sigma + ' px'; $('q-o').textContent = Math.round(state.q * 100) + '%'; $('dens-o').textContent = DN[state.dens];
+    const kChanged = state.steps.length !== state.k;
+    recompute(); if (kChanged) buildSteps(); render();
+  }
+  ['k', 'sigma', 'q', 'dens'].forEach(id => $(id).addEventListener('input', onSlider));
+  $('play').addEventListener('click', play);
+  $('run').addEventListener('click', () => {
+    state.statSeed = (state.statSeed * 16807 + 7) % 2147483647;
+    state.stats = runStats(state.L, state.steps, state.sigma, state.q, N, state.statSeed); render();
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  recompute(); buildSteps(); render();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+
+  window.OneWrongClick = { state, DENS, buildLayout, stepsFor, runStats, simEpisode, rng, recompute, render, play, inside };
+})();
+</script>
